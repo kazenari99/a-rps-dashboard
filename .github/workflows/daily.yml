@@ -76,10 +76,14 @@ jobs:
         run: npx --yes wrangler@4 pages deploy public --project-name="$CLOUDFLARE_PROJECT" --branch=main --commit-dirty=true
       - name: Verify published page
         if: env.CF_TOKEN != ''
+        # The edge can serve the previous version for a short while after a deploy.
         run: |
-          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 10 \
-            "https://${CLOUDFLARE_PROJECT}.pages.dev/" -o /tmp/live.html
-          grep -q 'RPS VIEW' /tmp/live.html
+          for i in 1 2 3 4 5 6 7 8; do
+            if curl --fail --silent --show-error "https://${CLOUDFLARE_PROJECT}.pages.dev/?v=${GITHUB_RUN_ID}" -o /tmp/live.html \
+              && grep -q 'RPS VIEW' /tmp/live.html; then echo "Live page verified"; exit 0; fi
+            sleep 15
+          done
+          echo "::error::Live page does not show the new build yet"; exit 1
       - name: No Cloudflare token
         if: env.CF_TOKEN == ''
         run: echo "::warning::CLOUDFLARE_API_TOKEN not set; the page is only in the run's artifact"
