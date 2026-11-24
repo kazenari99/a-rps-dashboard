@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import build  # noqa: E402
 import data  # noqa: E402
 import rps  # noqa: E402
+import sector  # noqa: E402
 
 
 def bars_of(code, closes, start='2026-01-05'):
@@ -186,6 +187,49 @@ class BuildTest(unittest.TestCase):
         bars, names, idx, industry, caps = build.synthetic(n_stocks=500, seed=1)
         with self.assertRaises(RuntimeError):
             build.assemble(data.adjust(bars, None), names, idx, industry, caps, lambda m: None, {})
+
+
+class SectorTest(unittest.TestCase):
+    def test_counts_rank_and_tags(self):
+        # 10 stocks in 强 (8 jump ≥5% on the last two days), 10 in 弱 (one +6% today), 3 in 小.
+        frames, industry = [], {}
+        flat = [10.0] * 30
+        for i in range(10):
+            code = f'6000{i:02d}.SH'
+            closes = flat[:-2] + ([10.6, 11.2] if i < 8 else [10.0, 10.0])
+            frames.append(bars_of(code, closes))
+            industry[code] = '强'
+        for i in range(10):
+            code = f'0000{i:02d}.SZ'
+            closes = flat[:-1] + ([10.6] if i == 0 else [10.0])
+            frames.append(bars_of(code, closes))
+            industry[code] = '弱'
+        for i in range(3):
+            code = f'3000{i:02d}.SZ'
+            frames.append(bars_of(code, flat[:-1] + [12.0]))  # +20%: limit up, but sector too small
+            industry[code] = '小'
+        frames.append(bars_of('600099.SH', flat[:-1] + [11.0]))  # ST: ignored
+        industry['600099.SH'] = '强'
+        bars = data.adjust(pd.concat(frames, ignore_index=True), None)
+        names = pd.DataFrame({'name': ['*ST坏' if c == '600099.SH' else 'ok' for c in industry]}, index=list(industry))
+        out = sector.standing(bars, rps.features(bars), names, industry)
+        self.assertEqual(out['market'][-2:], [8, 12])
+        rows = {r['name']: r for r in out['rows']}
+        self.assertEqual(rows['强']['cnt5'], 8)
+        self.assertEqual(rows['强']['rank'], 1)
+        self.assertEqual(rows['弱']['rank'], 2)
+        self.assertIsNone(rows['小']['rank'])  # fewer than MIN_MEMBERS
+        self.assertEqual(rows['小']['zt'], 3)
+        self.assertEqual(rows['强']['purity'], 80.0)
+        self.assertEqual(rows['强']['hist'][-2:], [8, 8])
+        self.assertEqual(rows['强']['top_days'], 2)
+        self.assertEqual(rows['弱']['tag'], '新晋')
+        self.assertEqual(out['rows'][0]['name'], '强')
+
+    def test_limit_by_board(self):
+        self.assertEqual(sector.limit_pct('300750.SZ'), 0.20)
+        self.assertEqual(sector.limit_pct('688001.SH'), 0.20)
+        self.assertEqual(sector.limit_pct('600519.SH'), 0.10)
 
 
 if __name__ == '__main__':
