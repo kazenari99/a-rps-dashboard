@@ -178,7 +178,7 @@ class BuildTest(unittest.TestCase):
         json.dumps(ds, allow_nan=False)  # page JSON must be strict
         with tempfile.TemporaryDirectory() as tmp:
             page = build.render(ds, Path(tmp)).read_text()
-        self.assertIn('JADE RANK', page)
+        self.assertIn('RPS VIEW', page)
         self.assertNotIn('__DATA__', page)
         self.assertNotIn('</script><script>__', page)
 

@@ -79,7 +79,7 @@ jobs:
         run: |
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 10 \
             "https://${CLOUDFLARE_PROJECT}.pages.dev/" -o /tmp/live.html
-          grep -q 'JADE RANK' /tmp/live.html
+          grep -q 'RPS VIEW' /tmp/live.html
       - name: No Cloudflare token
         if: env.CF_TOKEN == ''
         run: echo "::warning::CLOUDFLARE_API_TOKEN not set; the page is only in the run's artifact"

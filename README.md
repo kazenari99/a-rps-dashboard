@@ -1,4 +1,4 @@
-# JADE RANK · A股 RPS 选股
+# RPS VIEW · A股 RPS 选股
 
 A股全市场 RPS（相对价格强度）每日选股页面，界面与 [JADE PULSE](https://jade-a.pages.dev/) 同一风格。工作日北京时间 19:00 和 21:00 由 GitHub Actions 自动更新，发布到 Cloudflare Pages（默认项目名 `jade-rps`，网址 `https://jade-rps.pages.dev/`）。
 
@@ -7,7 +7,7 @@ A股全市场 RPS（相对价格强度）每日选股页面，界面与 [JADE PU
 | 参数组 | 条件 |
 |---|---|
 | RPS 50/120 | RPS50 > 90 且 RPS120 > 85 |
-| RPS 120/250 · 陶博士 | RPS120 > 90 且 RPS250 > 85 |
+| RPS 120/250（陶博士版） | RPS120 > 90 且 RPS250 > 85 |
 
 - **RPS_N** = N 日涨幅在全市场的百分位（0–100）。涨幅用前复权收盘价、按该股自己的 N 根日K计算；RPS250 需要至少 251 根日K。
 - **参与排名**：沪深主板、创业板、科创板（不含北交所、B股），上市满 365 天，名称不含 ST/退，当日有成交。全市场一起排名，参数在 `rps.py` 的 `SETS`。

@@ -8,7 +8,7 @@ import pandas as pd
 # Two parameter sets, both shown on the page.
 SETS = {
     'A': dict(short=50, long=120, short_min=90, long_min=85, label='RPS 50/120'),
-    'B': dict(short=120, long=250, short_min=90, long_min=85, label='RPS 120/250 · 陶博士'),
+    'B': dict(short=120, long=250, short_min=90, long_min=85, label='RPS 120/250'),
 }
 PERIODS = sorted({p for s in SETS.values() for p in (s['short'], s['long'])})
 MIN_LISTED_DAYS = 365

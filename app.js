@@ -7,7 +7,7 @@
   const store = {
     get(k, d) {
       try {
-        const v = localStorage.getItem('jade-rank:' + k);
+        const v = localStorage.getItem('rps-view:' + k);
         return v === null ? d : JSON.parse(v);
       } catch {
         return d;
@@ -15,7 +15,7 @@
     },
     set(k, v) {
       try {
-        localStorage.setItem('jade-rank:' + k, JSON.stringify(v));
+        localStorage.setItem('rps-view:' + k, JSON.stringify(v));
       } catch {
         /* storage unavailable: keep in memory only */
       }
