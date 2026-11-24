@@ -88,6 +88,13 @@ def standing(bars, f, names, industry):
     in_top = rank <= TOP
 
     last = cnt5.index[-1]
+    today = wide.loc[last]
+    hits = today[today >= THRESH].sort_values(ascending=False)
+    stocks = {}
+    for code, v in hits.items():
+        stocks.setdefault(ind[code], []).append(
+            [code.split('.')[0], str(universe.at[code, 'name']), round(float(v) * 100, 2), bool(limit_up.at[last, code])]
+        )
     rows = []
     for name in cnt5.columns:
         members = int(n.loc[last, name])
@@ -118,6 +125,7 @@ def standing(bars, f, names, industry):
                 'ranks': [None if np.isnan(v) else int(v) for v in rank[name]],
                 'top_days': top_days,
                 'tag': tag,
+                'stocks': stocks.get(name, []),
             }
         )
     rows.sort(key=lambda x: (x['rank'] is None, x['rank'] or 0, -x['cnt5']))

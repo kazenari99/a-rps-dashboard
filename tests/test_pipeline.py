@@ -225,6 +225,8 @@ class SectorTest(unittest.TestCase):
         self.assertEqual(rows['强']['top_days'], 2)
         self.assertEqual(rows['弱']['tag'], '新晋')
         self.assertEqual(out['rows'][0]['name'], '强')
+        self.assertEqual(len(rows['强']['stocks']), 8)
+        self.assertEqual(rows['小']['stocks'][0][2:], [20.0, True])  # +20% on ChiNext = limit up
 
     def test_limit_by_board(self):
         self.assertEqual(sector.limit_pct('300750.SZ'), 0.20)

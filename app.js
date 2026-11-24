@@ -49,6 +49,7 @@
   const SECP = SEC.params || { thresh: 5, lookback: 5, top: 5, main_days: 3, min_members: 8 };
   const secByName = new Map(SEC.rows.map((r) => [r.name, r]));
   let secAll = false;
+  let secOpen = null;
 
   const fmt = (v, d = 2, sign = false) => {
     if (v === null || v === undefined || Number.isNaN(v)) return '—';
@@ -296,13 +297,30 @@
 
   // ── sector standing ─────────────────────────────────────────────────────
   const tagClass = { 主线: 'strong', 新晋: 'fresh', 退潮: 'broken' };
+  function detail(r, picks, span) {
+    const k = state.set;
+    const chips = (r.stocks || [])
+      .map(([code, name, chg, zt]) => {
+        const row = byCode.get(code);
+        const rps = row && row['in' + k] ? '<em class="rps-mark">RPS</em>' : '';
+        return `<span class="chip up" data-code="${esc(code)}"><b>${esc(code)}</b>${esc(name)} <span class="positive">+${fmt(chg, 2)}%</span>${zt ? '<em class="zt-mark">涨停</em>' : ''}${rps}</span>`;
+      })
+      .join('');
+    const btn = picks
+      ? `<button type="button" class="sec-filter" data-filter="${esc(r.name)}">${state.ind === r.name ? '取消筛选' : `下方入选表只看本行业（${picks} 只）`}</button>`
+      : '<span class="empty-note">本行业没有当前参数组的 RPS 入选股</span>';
+    return `<tr class="sec-detail"><td colspan="${span}"><div class="sec-detail-inner"><p class="sec-detail-head">${esc(r.name)} · 今日涨≥${SECP.thresh}% 共 ${r.cnt5} 只（点名称在下方表格查看）</p><div class="chips">${
+      chips || '<span class="empty-note">今天没有</span>'
+    }</div>${btn}</div></td></tr>`;
+  }
+
   function sectors() {
     const rowsS = SEC.rows;
     const n = SEC.dates.length;
     $('sectorBadge').textContent = n ? `${SEC.dates[0].slice(5)} ~ ${SEC.dates[n - 1].slice(5)} · ${rowsS.length} 个行业` : '无数据';
     $('sectorNote').textContent =
       `按当日收盘涨幅≥${SECP.thresh}%的家数排名（同花顺行业，每只股票只算一个行业）。占比＝占全市场涨≥${SECP.thresh}%家数；纯度＝占本行业有成交股票；` +
-      `领涨＝成交额加权涨幅−平均涨幅，为正说明大票带头。近${SECP.lookback}日有${SECP.main_days}天以上排进前${SECP.top}记为主线，其中今天掉出前${SECP.top}的记为退潮。点击行业可筛选下方入选表。`;
+      `领涨＝成交额加权涨幅−平均涨幅，为正说明大票带头。近${SECP.lookback}日有${SECP.main_days}天以上排进前${SECP.top}记为主线，其中今天掉出前${SECP.top}的记为退潮。点击行业展开当日涨≥${SECP.thresh}%名单。`;
     const mx = Math.max(1, ...SEC.market);
     $('sectorMood').innerHTML = SEC.market
       .map(
@@ -340,7 +358,7 @@
               <td class="num ${r.lead > 0 ? 'positive' : r.lead < 0 ? 'negative' : ''}">${fmt(r.lead, 2, true)}</td>
               <td><div class="spark">${spark}</div></td>
               <td class="num">${r.top_days}/${n}</td>
-              <td class="num">${p || '—'}</td></tr>`;
+              <td class="num">${p || '—'}</td></tr>${secOpen === r.name ? detail(r, p, heads.length) : ''}`;
           })
           .join('')
       : `<tr><td colspan="${heads.length}" class="empty-note" style="padding:24px">今天没有涨≥${SECP.thresh}%的股票</td></tr>`;
@@ -379,17 +397,28 @@
     table();
   });
   $('sectorBody').addEventListener('click', (e) => {
-    const tr = e.target.closest('tr[data-ind]');
-    if (!tr) return;
-    if (tr.dataset.picks === '0') {
-      $('resultCount').textContent = `${tr.dataset.ind}：当前参数组没有入选股`;
+    const chip = e.target.closest('.chip[data-code]');
+    if (chip) {
+      // Show the stock in the main table (search covers stocks outside the selection).
+      $('searchInput').value = chip.dataset.code;
+      state.q = chip.dataset.code;
+      table();
+      document.querySelector('.table-section').scrollIntoView({ behavior: 'smooth' });
       return;
     }
-    state.ind = state.ind === tr.dataset.ind ? 'all' : tr.dataset.ind;
-    industries();
+    const f = e.target.closest('[data-filter]');
+    if (f) {
+      state.ind = state.ind === f.dataset.filter ? 'all' : f.dataset.filter;
+      industries();
+      sectors();
+      table();
+      if (state.ind !== 'all') document.querySelector('.table-section').scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    const tr = e.target.closest('tr[data-ind]');
+    if (!tr) return;
+    secOpen = secOpen === tr.dataset.ind ? null : tr.dataset.ind;
     sectors();
-    table();
-    if (state.ind !== 'all') document.querySelector('.table-section').scrollIntoView({ behavior: 'smooth' });
   });
   $('sectorMore').addEventListener('click', () => {
     secAll = !secAll;

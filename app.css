@@ -772,6 +772,60 @@ tbody tr:hover {
   font-size: 0.68rem;
   font-weight: 700;
 }
+.sec-detail td {
+  padding: 12px 14px 16px;
+  background: rgba(16, 26, 41, 0.9);
+  white-space: normal;
+}
+.sector-wrap tbody tr.sec-detail {
+  cursor: default;
+}
+.sec-detail-inner {
+  position: sticky;
+  left: 14px;
+  max-width: min(900px, calc(100vw - 80px));
+}
+.sec-detail .chips {
+  max-height: none;
+}
+.sec-detail-head {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.sec-detail .chip {
+  cursor: pointer;
+}
+.zt-mark,
+.rps-mark {
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 700;
+}
+.zt-mark {
+  background: rgba(251, 113, 133, 0.16);
+  color: var(--red);
+}
+.rps-mark {
+  background: rgba(110, 231, 183, 0.14);
+  color: var(--green);
+}
+.sec-filter {
+  margin-top: 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.sec-filter:hover {
+  border-color: var(--green);
+}
 @media (max-width: 1100px) {
   .kpi-grid {
     grid-template-columns: repeat(3, 1fr);
