@@ -1,0 +1,110 @@
+name: Publish RPS dashboard
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  schedule:
+    # 19:00 and 21:00 Beijing time on weekdays; the second run picks up a late daily dump.
+    - cron: "0 11 * * 1-5"
+    - cron: "0 13 * * 1-5"
+permissions:
+  contents: read
+concurrency:
+  group: publish
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write # commit track/history.json
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || 'd210ce0ca782b8901889a72737771d59' }}
+      CLOUDFLARE_PROJECT: ${{ vars.CLOUDFLARE_PROJECT || 'jade-rps' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Tests
+        run: python -m unittest discover -s tests -v
+      # Bars store (~420 sessions), industry map and last snapshot survive between runs.
+      - uses: actions/cache@v6
+        with:
+          path: data_cache/
+          key: rps-cache-v1-${{ github.run_id }}
+          restore-keys: rps-cache-v1-
+      - name: Build from Tonghuashun
+        env:
+          HITHINK_API_KEY: ${{ secrets.HITHINK_API_KEY }}
+        run: python build.py
+      - name: Commit selection history
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if [ -z "$(git status --porcelain -- track/history.json)" ]; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add track/history.json
+          git commit -m "Record RPS selection ($(date -u +%F))"
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            sleep $((i * 10))
+          done
+          echo "::warning::Could not push track/history.json; the next run will try again"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rps-page-${{ github.run_id }}
+          path: public/
+          retention-days: 30
+      - name: Create Cloudflare Pages project (first run only)
+        if: env.CF_TOKEN != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if npx --yes wrangler@4 pages project list 2>/dev/null | grep -qw "$CLOUDFLARE_PROJECT"; then
+            echo "Project $CLOUDFLARE_PROJECT exists"
+          else
+            npx --yes wrangler@4 pages project create "$CLOUDFLARE_PROJECT" --production-branch=main
+          fi
+      - name: Deploy to Cloudflare Pages
+        if: env.CF_TOKEN != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 pages deploy public --project-name="$CLOUDFLARE_PROJECT" --branch=main --commit-dirty=true
+      - name: Verify published page
+        if: env.CF_TOKEN != ''
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 10 \
+            "https://${CLOUDFLARE_PROJECT}.pages.dev/" -o /tmp/live.html
+          grep -q 'JADE RANK' /tmp/live.html
+      - name: No Cloudflare token
+        if: env.CF_TOKEN == ''
+        run: echo "::warning::CLOUDFLARE_API_TOKEN not set; the page is only in the run's artifact"
+
+  notify:
+    needs: build
+    if: ${{ always() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      RESULT: ${{ needs.build.result }}
+    steps:
+      - name: Open or close the failure issue
+        run: |
+          TITLE="[自动更新失败] RPS 选股每日发布"
+          n=$(gh issue list --state open --limit 50 --json number,title --jq ".[] | select(.title == \"$TITLE\") | .number" | head -1)
+          if [ "$RESULT" = "success" ]; then
+            if [ -n "$n" ]; then gh issue close "$n" --comment "已恢复：$RUN_URL"; fi
+          elif [ -n "$n" ]; then
+            gh issue comment "$n" --body "仍然失败，线上保留上一版页面：$RUN_URL"
+          else
+            gh issue create --title "$TITLE" --body "发布失败，线上保留上一版页面：$RUN_URL"
+          fi
