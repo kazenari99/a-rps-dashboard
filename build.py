@@ -20,6 +20,7 @@ import pandas as pd
 
 import data
 import rps
+import sector
 
 ROOT = Path(__file__).resolve().parent
 HISTORY = ROOT / 'track/history.json'
@@ -69,6 +70,10 @@ def assemble(bars, names, index_close, industry, caps_fn, log, history):
     """Rank the market and build the page dataset. `caps_fn(codes)` returns float caps."""
     target = bars['date'].max().strftime('%Y-%m-%d')
     f = rps.features(bars)
+    sectors = sector.standing(bars, f, names, industry)
+    if sectors['rows']:
+        top = '、'.join(f"{r['name']}({r['cnt5']})" for r in sectors['rows'][:3] if r['rank'])
+        log(f'涨≥5%：全市场 {sectors["market"][-1]} 只；板块前列 {top}')
     f, dropped = rps.eligible(f, names, target)
     for reason, n in sorted(dropped.items()):
         log(f'剔除{reason}：{n:,} 只')
@@ -150,6 +155,7 @@ def assemble(bars, names, index_close, industry, caps_fn, log, history):
         'market': rps.market_state(index_close, target, f),
         'cols': cols,
         'industry': industry_summary,
+        'sector': sectors,
         'exits': exits,
     }
     return dataset, target, codes_by_set

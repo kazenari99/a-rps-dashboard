@@ -45,6 +45,10 @@
     limit: 300,
   };
   const favs = new Set(store.get('favs', []));
+  const SEC = D.sector || { dates: [], market: [], rows: [] };
+  const SECP = SEC.params || { thresh: 5, lookback: 5, top: 5, main_days: 3, min_members: 8 };
+  const secByName = new Map(SEC.rows.map((r) => [r.name, r]));
+  let secAll = false;
 
   const fmt = (v, d = 2, sign = false) => {
     if (v === null || v === undefined || Number.isNaN(v)) return '—';
@@ -191,7 +195,15 @@
         cell: (r) =>
           `<td class="ticker-cell"><a href="https://stockpage.10jqka.com.cn/${r.code}/" target="_blank" rel="noopener">${esc(r.name)}</a>${r['new' + k] ? '<span class="new-tag">新</span>' : ''}<small>${r.code}${r['in' + k] ? '' : ' <span class="out-tag">· 未入选</span>'}</small></td>`,
       },
-      { h: '行业', key: 'ind', cell: (r) => `<td class="ind" title="${esc(r.ind)}">${esc(r.ind) || '—'}</td>` },
+      {
+        h: '行业',
+        key: 'ind',
+        cell: (r) => {
+          const sr = secByName.get(r.ind);
+          const tag = sr && sr.rank && sr.rank <= SECP.top ? `<span class="sec-rank" title="板块地位：涨≥${SECP.thresh}%家数排名">#${sr.rank}</span>` : '';
+          return `<td class="ind" title="${esc(r.ind)}">${tag}${esc(r.ind) || '—'}</td>`;
+        },
+      },
       { h: '收盘', key: 'close', num: true, cell: (r) => `<td class="num">${fmt(r.close, 2)}</td>` },
       { h: '今日', key: 'chg', num: true, cell: (r) => pctCell(r.chg, 2) },
       { h: `RPS${s.short}`, key: 'rps' + s.short, num: true, cell: (r) => rpsCell(r['rps' + s.short], s.short_min) },
@@ -276,9 +288,65 @@
       return `${s.label}：RPS${s.short} > ${s.short_min} 且 RPS${s.long} > ${s.long_min}`;
     }).join('；') + '。两组用同一批股票、同一天的数据，页面顶部切换。';
     $('methodState').textContent = `只描述位置，不是买卖信号。跌破MA20：前复权收盘价低于20日均线；回踩中：在MA20上方，且距最近10根日K最高收盘价 ≤ ${D.meta.pullback}%；高位强势：其余在MA20上方的股票。“新”表示上一个快照不在本组名单里。`;
+    $('methodSector').textContent = `每个交易日收盘后统计各同花顺行业中涨幅≥${SECP.thresh}%的股票家数，按家数排名，成分少于${SECP.min_members}只的行业不排名。家数看资金同时在做多少只，比平均涨幅更不容易被一两只涨停股拉偏；配合占比（剔除大盘普涨）、纯度、领涨（大票是否带头）和近${SECP.lookback}日持续性一起看。创业板、科创板涨跌幅20%，同一阈值下更容易入数。只用收盘数据，不是盘中信号。`;
     const log = D.log || [];
     $('healthSummary').textContent = `数据运行记录 · ${log.length} 条`;
     $('healthLog').textContent = log.join('\n');
+  }
+
+  // ── sector standing ─────────────────────────────────────────────────────
+  const tagClass = { 主线: 'strong', 新晋: 'fresh', 退潮: 'broken' };
+  function sectors() {
+    const rowsS = SEC.rows;
+    const n = SEC.dates.length;
+    $('sectorBadge').textContent = n ? `${SEC.dates[0].slice(5)} ~ ${SEC.dates[n - 1].slice(5)} · ${rowsS.length} 个行业` : '无数据';
+    $('sectorNote').textContent =
+      `按当日收盘涨幅≥${SECP.thresh}%的家数排名（同花顺行业，每只股票只算一个行业）。占比＝占全市场涨≥${SECP.thresh}%家数；纯度＝占本行业有成交股票；` +
+      `领涨＝成交额加权涨幅−平均涨幅，为正说明大票带头。近${SECP.lookback}日有${SECP.main_days}天以上排进前${SECP.top}记为主线，其中今天掉出前${SECP.top}的记为退潮。点击行业可筛选下方入选表。`;
+    const mx = Math.max(1, ...SEC.market);
+    $('sectorMood').innerHTML = SEC.market
+      .map(
+        (v, i) =>
+          `<div class="mood-day ${i === n - 1 ? 'today' : ''}"><b>${v}</b><div class="mood-track"><i style="height:${(v / mx) * 100}%"></i></div><span>${SEC.dates[i].slice(5)}</span></div>`,
+      )
+      .join('') + `<p class="mood-label">全市场涨≥${SECP.thresh}%<br />家数（情绪温度）</p>`;
+
+    const k = state.set;
+    const picks = new Map();
+    rows.forEach((r) => r['in' + k] && picks.set(r.ind || '未分类', (picks.get(r.ind || '未分类') || 0) + 1));
+    const heads = ['#', '行业', `涨≥${SECP.thresh}%`, '占比', '纯度', '涨停', '均涨幅', '加权', '领涨', `近${SECP.lookback}日家数`, `前${SECP.top}天数`, 'RPS入选'];
+    $('sectorHead').innerHTML = heads.map((h, i) => `<th class="${i > 1 && i !== 9 ? 'num' : ''}">${h}</th>`).join('');
+    const list = secAll ? rowsS : rowsS.filter((r) => r.rank && r.rank <= 15);
+    const hmax = Math.max(1, ...rowsS.flatMap((r) => r.hist));
+    $('sectorBody').innerHTML = list.length
+      ? list
+          .map((r) => {
+            const prevRank = r.ranks.length > 1 ? r.ranks[r.ranks.length - 2] : null;
+            let move = '';
+            if (r.rank && prevRank) move = prevRank > r.rank ? `<i class="positive">↑${prevRank - r.rank}</i>` : prevRank < r.rank ? `<i class="negative">↓${r.rank - prevRank}</i>` : '';
+            else if (r.rank && !prevRank) move = '<i class="positive">新</i>';
+            const spark = r.hist
+              .map((v, i) => `<i style="height:${Math.max(2, (v / hmax) * 100)}%" class="${r.ranks[i] && r.ranks[i] <= SECP.top ? 'hot' : ''}" title="${SEC.dates[i]}：${v} 只${r.ranks[i] ? ' · 第' + r.ranks[i] + '名' : ''}"></i>`)
+              .join('');
+            const p = picks.get(r.name) || 0;
+            return `<tr class="${state.ind === r.name ? 'active' : ''}" data-ind="${esc(r.name)}" data-picks="${p}">
+              <td class="num">${r.rank ?? '—'} ${move}</td>
+              <td class="sec-name">${esc(r.name)}${r.tag ? ` <span class="table-chip ${tagClass[r.tag]}">${r.tag}</span>` : ''}<small>${r.n} 只</small></td>
+              <td class="num"><b>${r.cnt5}</b></td>
+              <td class="num">${fmt(r.share, 1)}%</td>
+              <td class="num">${fmt(r.purity, 1)}%</td>
+              <td class="num">${r.zt}</td>
+              ${pctCell(r.avg, 2)}${pctCell(r.wavg, 2)}
+              <td class="num ${r.lead > 0 ? 'positive' : r.lead < 0 ? 'negative' : ''}">${fmt(r.lead, 2, true)}</td>
+              <td><div class="spark">${spark}</div></td>
+              <td class="num">${r.top_days}/${n}</td>
+              <td class="num">${p || '—'}</td></tr>`;
+          })
+          .join('')
+      : `<tr><td colspan="${heads.length}" class="empty-note" style="padding:24px">今天没有涨≥${SECP.thresh}%的股票</td></tr>`;
+    const hidden = rowsS.length - list.length;
+    $('sectorMore').hidden = !secAll && hidden <= 0;
+    $('sectorMore').textContent = secAll ? '只看前 15' : `显示全部行业（还有 ${hidden} 个）`;
   }
 
   function renderAll() {
@@ -286,6 +354,7 @@
     kpis();
     changes();
     industries();
+    sectors();
     table();
   }
 
@@ -298,6 +367,7 @@
   $('industrySelect').addEventListener('change', (e) => {
     state.ind = e.target.value;
     industries();
+    sectors();
     table();
   });
   $('industryBars').addEventListener('click', (e) => {
@@ -305,7 +375,25 @@
     if (!b) return;
     state.ind = state.ind === b.dataset.ind ? 'all' : b.dataset.ind;
     industries();
+    sectors();
     table();
+  });
+  $('sectorBody').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-ind]');
+    if (!tr) return;
+    if (tr.dataset.picks === '0') {
+      $('resultCount').textContent = `${tr.dataset.ind}：当前参数组没有入选股`;
+      return;
+    }
+    state.ind = state.ind === tr.dataset.ind ? 'all' : tr.dataset.ind;
+    industries();
+    sectors();
+    table();
+    if (state.ind !== 'all') document.querySelector('.table-section').scrollIntoView({ behavior: 'smooth' });
+  });
+  $('sectorMore').addEventListener('click', () => {
+    secAll = !secAll;
+    sectors();
   });
   $('stateFilter').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-state]');

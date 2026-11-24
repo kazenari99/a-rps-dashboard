@@ -677,6 +677,101 @@ tbody tr:hover {
   font-size: 0.72rem;
   letter-spacing: 0.12em;
 }
+/* ── sector standing ─────────────────────────────────────────────────── */
+.standing-section {
+  margin-top: 18px;
+}
+.mood {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+.mood-day {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 46px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.mood-day b {
+  color: var(--text);
+  font-size: 0.84rem;
+}
+.mood-day.today b {
+  color: var(--green);
+}
+.mood-track {
+  display: flex;
+  align-items: flex-end;
+  width: 18px;
+  height: 56px;
+  border-radius: 4px;
+  background: #172233;
+  overflow: hidden;
+}
+.mood-track i {
+  display: block;
+  width: 100%;
+  background: #3a4a63;
+}
+.mood-day.today .mood-track i {
+  background: var(--green);
+}
+.mood-label {
+  margin-left: 6px;
+  color: #637087;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+.sector-wrap {
+  max-height: 64vh;
+}
+.sector-wrap tbody tr {
+  cursor: pointer;
+}
+.sector-wrap tbody tr.active {
+  background: rgba(110, 231, 183, 0.08);
+}
+.sector-wrap td i {
+  font-style: normal;
+  font-size: 0.7rem;
+}
+.sec-name small {
+  display: block;
+  color: #637087;
+  font-size: 0.7rem;
+}
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 22px;
+}
+.spark i {
+  display: block;
+  width: 7px;
+  border-radius: 2px;
+  background: #3a4a63;
+}
+.spark i.hot {
+  background: var(--green);
+}
+.table-chip.fresh {
+  color: var(--blue);
+  border-color: rgba(96, 165, 250, 0.4);
+  background: rgba(96, 165, 250, 0.07);
+}
+.sec-rank {
+  margin-right: 5px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgba(110, 231, 183, 0.12);
+  color: var(--green);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
 @media (max-width: 1100px) {
   .kpi-grid {
     grid-template-columns: repeat(3, 1fr);

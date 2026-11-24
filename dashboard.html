@@ -44,6 +44,19 @@
         <div class="breadth" id="breadthBars" aria-label="市场宽度"></div>
       </section>
 
+      <section class="standing-section panel">
+        <div class="panel-head"><div><p class="section-kicker">SECTOR STANDING</p><h2>板块地位 · 涨≥5%家数</h2></div><span class="badge" id="sectorBadge"></span></div>
+        <p class="chart-note" id="sectorNote"></p>
+        <div class="mood" id="sectorMood" aria-label="全市场涨≥5%家数"></div>
+        <div class="table-wrap sector-wrap">
+          <table>
+            <thead><tr id="sectorHead"></tr></thead>
+            <tbody id="sectorBody"></tbody>
+          </table>
+        </div>
+        <button id="sectorMore" class="more-rows" type="button" hidden>显示全部行业</button>
+      </section>
+
       <section class="changes-section panel">
         <div class="panel-head"><div><p class="section-kicker">SINCE LAST SNAPSHOT</p><h2>每日变化</h2></div><span id="comparisonDate" class="badge"></span></div>
         <div id="dailyChanges" class="changes-grid"></div>
@@ -100,6 +113,7 @@
             <div><h3>两组选股条件</h3><p id="methodSets"></p></div>
             <div><h3>参与排名的股票</h3><p>沪深主板、创业板、科创板（不含北交所、B股），上市满365天，剔除名称含ST或“退”的股票，当日停牌或无成交的不排名。全市场一起排名后再选股；流通市值≥30亿只是页面上的筛选，不影响RPS数值。</p></div>
             <div><h3>状态标签</h3><p id="methodState"></p></div>
+            <div><h3>板块地位</h3><p id="methodSector"></p></div>
             <div><h3>大盘风控只作提示</h3><p>沪深300收盘低于20日简单均线（MA20）时，顶部标为风控触发，但名单照常列出。是否按风控空仓由你决定。</p></div>
             <div><h3>数据来源与更新</h3><p>全部来自同花顺金融API：全市场日K批量导出（未复权，按除权除息事件自行前复权）、代码表、沪深300指数日线、集合竞价快照中的流通市值（仅入选股）、同花顺行业指数成分（每周刷新）。工作日北京时间19:00和21:00各运行一次，以页面上的数据日期为准。</p></div>
           </div>
